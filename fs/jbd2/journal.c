@@ -1541,7 +1541,9 @@ static journal_t *journal_init_common(struct block_device *bdev,
 	journal->j_blk_offset = start;
 	journal->j_total_len = len;
 	jbd2_init_fs_dev_write_error(journal);
-
+	err = jbd2_init_hot_blocks(journal);
+	if (err)
+		goto err_cleanup;
 	err = journal_load_superblock(journal);
 	if (err)
 		goto err_cleanup;
@@ -2198,6 +2200,9 @@ int jbd2_journal_destroy(journal_t *journal)
 		jbd2_journal_destroy_revoke(journal);
 	if (journal->j_chksum_driver)
 		crypto_free_shash(journal->j_chksum_driver);
+
+	/* Cleanup hot blocks tracking */
+	jbd2_cleanup_hot_blocks(journal);
 	kfree(journal->j_fc_wbuf);
 	kfree(journal->j_wbuf);
 	kfree(journal);

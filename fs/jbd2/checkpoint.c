@@ -193,6 +193,9 @@ restart:
 	    transaction->t_tid != this_tid)
 		goto out;
 
+	/* Print hot blocks before checkpoint */
+	jbd2_print_hot_blocks(journal);
+
 	/* checkpoint all of the transaction's buffers */
 	while (transaction->t_checkpoint_list) {
 		jh = transaction->t_checkpoint_list;
@@ -278,6 +281,7 @@ restart:
 		    jh2bh(transaction->t_checkpoint_list) == journal->j_chkpt_bhs[0])
 			goto unlock_and_flush;
 	}
+	jbd2_reset_all_block_counts(journal);
 
 	if (batch_count) {
 		unlock_and_flush:

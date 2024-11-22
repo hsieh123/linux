@@ -579,6 +579,18 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 
 		jh = commit_transaction->t_buffers;
 
+		/* Record block access */
+		err = jbd2_record_block_access(journal, jh2bh(jh)->b_blocknr);
+		if (err) {
+			/* Log error but continue - hot block tracking is not critical */
+            printk(KERN_WARNING "JBD2: Failed to record block access for %llu (err=%d)\n",
+                   jh2bh(jh)->b_blocknr, err);
+            
+            if (err == -ENOMEM) {
+                /* If we're out of memory, stop tracking for this commit */
+                break;
+            }
+        }
 		/* If we're in abort mode, we just un-journal the buffer and
 		   release it. */
 

@@ -69,6 +69,10 @@ extern void jbd2_free(void *ptr, size_t size);
 #define JBD2_MIN_JOURNAL_BLOCKS 1024
 #define JBD2_DEFAULT_FAST_COMMIT_BLOCKS 256
 
+/* Hot block tracking definitions */
+#define JBD2_HOT_BLOCK_WINDOW 100    /* Track last N transactions */
+#define JBD2_HOT_THRESHOLD    2      /* Minimum accesses to be considered hot */
+
 #ifdef __KERNEL__
 
 /**
@@ -749,6 +753,7 @@ enum passtype {PASS_SCAN, PASS_REVOKE, PASS_REPLAY};
  */
 struct journal_s
 {
+	struct hot_blocks_track *j_hot_track;  /* Hot blocks tracking */
 	/**
 	 * @j_flags: General journaling state flags [j_state_lock,
 	 * no lock for quick racy checks]
@@ -1854,5 +1859,28 @@ static inline int jbd2_handle_buffer_credits(handle_t *handle)
 
 #define EFSBADCRC	EBADMSG		/* Bad CRC detected */
 #define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
+
+#include <linux/rbtree.h>
+/* Structure to track block access counts */
+struct block_count {
+    struct rb_node node;
+    unsigned long long blocknr;
+    unsigned int count;
+};
+
+struct hot_blocks_track {
+    struct rb_root root;
+    spinlock_t lock;
+    unsigned int window_size;
+    unsigned int hot_threshold;
+};
+
+/* Function declarations for hot block tracking */
+int jbd2_init_hot_blocks(journal_t *journal);
+int jbd2_record_block_access(journal_t *journal, unsigned long long blocknr);
+void jbd2_print_hot_blocks(journal_t *journal);
+void jbd2_reset_all_block_counts(journal_t *journal);
+void jbd2_cleanup_hot_blocks(journal_t *journal); 
+
 
 #endif	/* _LINUX_JBD2_H */
